@@ -1,146 +1,9 @@
-<?php
-
-/**
- * Plugin Name: Fitbase Code Redirect
- * Description: .
- * Version: 1.0.0
- * Author: Filip Stojanovic
- */
-
-// Register the custom post type
-function register_fitbase_code_post_type()
-{
-    register_post_type('fitbase_code', array(
-        'labels'      => array(
-            'name'          => 'Fitbase Code Redirect',
-            'singular_name' => 'Fitbase Code Redirect',
-        ),
-        'public'      => true,
-        'has_archive' => true,
-        'supports'    => array('title'),
-    ));
-}
-add_action('init', 'register_fitbase_code_post_type');
-
-// Remove unnecessary meta boxes for the fitbase_code post type
-function remove_fitbase_code_meta_boxes()
-{
-    remove_meta_box('postimagediv', 'fitbase_code', 'side'); // Featured image metabox
-    remove_meta_box('postexcerpt', 'fitbase_code', 'normal'); // Excerpt metabox
-    remove_meta_box('tagsdiv-post_tag', 'fitbase_code', 'side'); // Tags metabox
-    remove_meta_box('categorydiv', 'fitbase_code', 'side'); // Categories metabox
-}
-add_action('admin_menu', 'remove_fitbase_code_meta_boxes');
-
-// Add custom input fields for code and redirect URL
-function add_fitbase_code_custom_fields()
-{
-    add_meta_box(
-        'fitbase_code_fields',
-        'Fitbase Code Fields',
-        'render_fitbase_code_custom_fields',
-        'fitbase_code',
-        'normal',
-        'default'
-    );
-}
-add_action('add_meta_boxes', 'add_fitbase_code_custom_fields');
-
-// Render the custom fields HTML
-function render_fitbase_code_custom_fields($post)
-{
-    wp_nonce_field(basename(__FILE__), 'fitbase_code_fields_nonce');
-
-    $code = get_post_meta($post->ID, 'fitbase_code', true);
-    $redirect_url = get_post_meta($post->ID, 'fitbase_redirect_url', true);
-?>
-    <p>use <b>[fitbase_code_form]</b> shortcode in pages/posts</p>
-    <p>
-        <label for="fitbase_code">Registrierungscode:</label><br>
-        <input type="text" name="fitbase_code" id="fitbase_code" value="<?php echo esc_attr($code); ?>" style="width: 100%;">
-    </p>
-    <p>
-        <label for="fitbase_redirect_url">Weiterleitungs-URL:</label><br>
-        <input type="text" name="fitbase_redirect_url" id="fitbase_redirect_url" value="<?php echo esc_attr($redirect_url); ?>" style="width: 100%;">
-    </p>
-<?php
-}
-
-// Save the custom fields
-function save_fitbase_code_custom_fields($post_id)
-{
-    if (!isset($_POST['fitbase_code_fields_nonce']) || !wp_verify_nonce($_POST['fitbase_code_fields_nonce'], basename(__FILE__))) {
-        return;
-    }
-
-    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
-        return;
-    }
-
-    if (!current_user_can('edit_post', $post_id)) {
-        return;
-    }
-
-    if (isset($_POST['fitbase_code'])) {
-        update_post_meta($post_id, 'fitbase_code', sanitize_text_field($_POST['fitbase_code']));
-    }
-
-    if (isset($_POST['fitbase_redirect_url'])) {
-        update_post_meta($post_id, 'fitbase_redirect_url', sanitize_text_field($_POST['fitbase_redirect_url']));
-    }
-}
-
-add_action('save_post_fitbase_code', 'save_fitbase_code_custom_fields');
-
-// Enqueue necessary scripts for the shortcode
-function enqueue_fitbase_code_scripts()
-{
-    wp_enqueue_style('fitbase-code-style', plugins_url('/css/style.css', __FILE__));
-
-    wp_enqueue_script('fitbase-code-script', plugins_url('/js/fitbase-code-script.js', __FILE__), array('jquery'), '1.0', true);
-
-    // Localize the script and pass the ajaxurl
-    wp_localize_script('fitbase-code-script', 'fitbaseCode', array(
-        'ajaxUrl' => admin_url('admin-ajax.php'),
-    ));
-}
-add_action('wp_enqueue_scripts', 'enqueue_fitbase_code_scripts', 50);
-
-// AJAX callback function to validate the code
-function validate_fitbase_code()
-{
-    if (empty($_POST['code'])) {
-        wp_send_json_error('Code ist leer.');
-    }
-
-    $args = array(
-        'post_type'      => 'fitbase_code',
-        'meta_query'     => array(
-            array(
-                'key'     => 'fitbase_code',
-                'value'   => sanitize_text_field($_POST['code']),
-            ),
-        ),
-    );
-
-    $fitbase_code_query = new WP_Query($args);
-
-    if ($fitbase_code_query->have_posts()) {
-        $fitbase_code_query->the_post();
-        $redirect_url = get_post_meta(get_the_ID(), 'fitbase_redirect_url', true);
-        wp_send_json_success($redirect_url);
-    } else {
-        wp_send_json_error('Der Code ist ungültig.');
-    }
-}
-add_action('wp_ajax_validate_fitbase_code', 'validate_fitbase_code');
-add_action('wp_ajax_nopriv_validate_fitbase_code', 'validate_fitbase_code');
-
-// Shortcode function to display the form
-function fitbase_code_shortcode()
-{
-    ob_start();
-?>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
     <!-- font -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -149,95 +12,73 @@ function fitbase_code_shortcode()
       href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap"
       rel="stylesheet"
     />
-
-<!-- Form -->
-<div id="cst-container">
-  <form
-    id="fitbase-code-form"
-    class="max-w-[35rem] rounded-xl grid gap-5 bg-white"
-  >
-    <!-- input -->
-    <div class="wrapper mt-4 sm:mt-5 md:mt-6">
-      <div class="relative filed">
-        <input
-          id="fitbase-code-input"
-          type="text"
-          class="peer cst-input border border-[#6B7986] block w-full rounded bg-transparent py-2 px-3 leading-[1.6] outline-none transition-all duration-200 ease-linear peer-focus:text-primary motion-reduce:transition-none [&:not([data-te-input-placeholder-active])]:placeholder:opacity-0"
-          id="register"
-        />
-        <label
-          for="fitbase-code-input"
-          class="pointer-events-none cst-label absolute left-3 top-1/2 transform -translate-y-1/2 max-w-[90%] origin-[0_0] truncate leading-[1] text-neutral-900 transition-all duration-200 ease-out peer-focus:-translate-y-[1.8rem] peer-focus:scale-[0.85] motion-reduce:transition-none bg-white"
-          >Registrierungscode
-        </label>
-        <!-- cross -->
-        <div
-          class="cross absolute top-1/2 transform -translate-y-1/2 right-4 rounded-full bg-gray-400 text-white cursor-pointer h-5 w-5 invisible flex justify-center items-center"
-        >
-          <svg
-            stroke="currentColor"
-            fill="none"
-            stroke-width="0"
-            viewBox="0 0 15 15"
-            height="0.9em"
-            width="0.9em"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              fill-rule="evenodd"
-              clip-rule="evenodd"
-              d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z"
-              fill="currentColor"
-            ></path>
-          </svg>
-        </div>
-      </div>
-      <!-- error -->
-      <div class="mt-1" id="cst-result">
-        <span
-          id="fitbase-code-result"
-          class="text-[0.9rem] font-medium opacity-0 transition-all duration-75"
-          >Der Code ist ungültig.</span
-        >
-      </div>
-    </div>
-  
-    <!-- btn -->
-    <div class="btn mt-2 flex justify-end items-center">
-      <button
-      id="fitbase-code-submit"
-        type="submit"
-        class="bg-[#003BB3] text-white rounded-3xl px-10"
+    <link rel="stylesheet" href="./css/style.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body>
+    <!-- Form -->
+    <div id="cst-container">
+      <form
+        id="fitbase-code-form"
+        class="max-w-[35rem] rounded-xl grid gap-5 bg-white shadow-lg p-6 mt-10"
       >
-        Einlösen
-      </button>
+        <!-- input -->
+        <div class="wrapper mt-4 sm:mt-5 md:mt-6">
+          <div class="relative filed">
+            <input
+              id="fitbase-code-input"
+              type="text"
+              class="peer cst-input border border-[#6B7986] block w-full rounded bg-transparent py-2 px-3 leading-[1.6] outline-none transition-all duration-200 ease-linear peer-focus:text-primary motion-reduce:transition-none [&:not([data-te-input-placeholder-active])]:placeholder:opacity-0"
+              id="register"
+            />
+            <label
+              for="fitbase-code-input"
+              class="pointer-events-none cst-label absolute left-3 top-1/2 transform -translate-y-1/2 max-w-[90%] origin-[0_0] truncate leading-[1] text-neutral-900 transition-all duration-200 ease-out peer-focus:-translate-y-[1.8rem] peer-focus:scale-[0.85] motion-reduce:transition-none bg-white"
+              >Registrierungscode
+            </label>
+            <!-- cross -->
+            <div
+              class="cross absolute top-1/2 transform -translate-y-1/2 right-4 rounded-full bg-gray-400 text-white cursor-pointer h-5 w-5 invisible flex justify-center items-center"
+            >
+              <svg
+                stroke="currentColor"
+                fill="none"
+                stroke-width="0"
+                viewBox="0 0 15 15"
+                height="0.9em"
+                width="0.9em"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  fill-rule="evenodd"
+                  clip-rule="evenodd"
+                  d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z"
+                  fill="currentColor"
+                ></path>
+              </svg>
+            </div>
+          </div>
+          <!-- error -->
+          <div class="mt-1" id="cst-result">
+            <span
+              id="fitbase-code-result"
+              class="text-[0.9rem] font-medium opacity-0 transition-all duration-75"
+              >Der Code ist ungültig.</span
+            >
+          </div>
+        </div>
+
+        <!-- btn -->
+        <div class="btn mt-2 flex justify-end items-center">
+          <button
+            id="fitbase-code-submit"
+            type="submit"
+            class="bg-[#003BB3] text-white rounded-3xl px-10"
+          >
+            Einlösen
+          </button>
+        </div>
+      </form>
     </div>
-  </form>
-</div>
-<?php
-    return ob_get_clean();
-}
-add_shortcode('fitbase_code_form', 'fitbase_code_shortcode');
-
-// Add custom columns to the fitbase_code post type admin list view
-function add_fitbase_code_columns($columns)
-{
-    $columns['fitbase_code'] = 'Registrierungscode';
-    $columns['fitbase_redirect_url'] = 'Weiterleitungs URL';
-    return $columns;
-}
-add_filter('manage_fitbase_code_posts_columns', 'add_fitbase_code_columns');
-
-// Populate custom column data for the fitbase_code post type admin list view
-function populate_fitbase_code_columns($column, $post_id)
-{
-    switch ($column) {
-        case 'fitbase_code':
-            echo get_post_meta($post_id, 'fitbase_code', true);
-            break;
-        case 'fitbase_redirect_url':
-            echo get_post_meta($post_id, 'fitbase_redirect_url', true);
-            break;
-    }
-}
-add_action('manage_fitbase_code_posts_custom_column', 'populate_fitbase_code_columns', 10, 2);
+  </body>
+</html>
